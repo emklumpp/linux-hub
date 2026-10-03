@@ -1,0 +1,122 @@
+# Modbus/PLC Troubleshooting Tool — test stack
+#
+# Default `docker compose up -d --build` starts the lightweight core:
+#   troubleshooter (app) + simulator (pure-Python Modbus TCP target)
+# The simulator needs no extra image and has no ARM concerns.
+#
+# Optional profiles (opt in only when you need them):
+#   docker compose --profile openplc up -d   # add the full OpenPLC runtime
+#   docker compose --profile extras  up -d   # add MQTT + Grafana
+
+services:
+  # Main troubleshooting application
+  troubleshooter:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    image: modbus-troubleshooter:local
+    container_name: modbus-troubleshooter
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///data/troubleshooter.db
+      - OPENPLC_HOST=openplc
+      - OPENPLC_PORT=502
+      - OPENPLC_WEB_PORT=8080
+      - LOG_LEVEL=INFO
+      - TZ=America/Los_Angeles
+    volumes:
+      # Persist the SQLite database and logs on the host.
+      - ./data:/app/data
+    # Serial / RTU access: uncomment and set the correct device when a
+    # USB-to-serial adapter (or the Pi UART) is connected. Leaving these
+    # commented lets the stack start without the hardware present.
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0   # USB-to-serial adapter
+    #   - /dev/ttyAMA0:/dev/ttyAMA0   # Raspberry Pi on-board UART
+    # group_add:
+    #   - dialout
+    networks:
+      - modbus-net
+    depends_on:
+      - simulator
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Lightweight Modbus TCP target (pure Python, reuses the app image).
+  # Reachable from the troubleshooter as host "simulator" port 502.
+  simulator:
+    image: modbus-troubleshooter:local
+    container_name: modbus-simulator
+    command: ["python", "simulator.py"]
+    restart: unless-stopped
+    ports:
+      - "5020:502"   # host 5020 -> container 502 (avoids clashing with openplc)
+    networks:
+      - modbus-net
+
+  # Full OpenPLC runtime — optional, only with `--profile openplc`.
+  # Note: verify this image has an ARM build before relying on it.
+  openplc:
+    image: ghcr.io/thiagoralves/openplc_v3:latest
+    container_name: openplc-runtime
+    profiles: ["openplc"]
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # OpenPLC web interface
+      - "502:502"     # Modbus TCP
+    environment:
+      - TZ=America/Los_Angeles
+    volumes:
+      - openplc-data:/workdir
+    networks:
+      - modbus-net
+
+  # MQTT broker for event notifications (optional — "extras" profile)
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    profiles: ["extras"]
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mqtt/config:/mosquitto/config
+      - mqtt-data:/mosquitto/data
+      - mqtt-logs:/mosquitto/log
+    networks:
+      - modbus-net
+
+  # Grafana for visualization (optional — "extras" profile)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: troubleshooter-grafana
+    profiles: ["extras"]
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - modbus-net
+    depends_on:
+      - troubleshooter
+
+networks:
+  modbus-net:
+    driver: bridge
+
+volumes:
+  openplc-data:
+  mqtt-data:
+  mqtt-logs:
+  grafana-data:

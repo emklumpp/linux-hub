@@ -1,0 +1,18 @@
+# Web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Modbus communication
+pymodbus==3.6.9
+pyserial==3.5
+
+# Database
+sqlalchemy==2.0.23
+
+# HTTP client (OpenPLC web interface)
+httpx==0.25.1
+
+# Templates
+jinja2==3.1.2

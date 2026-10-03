@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Modbus Troubleshooting Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            color: #444;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .links {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .link-card {
+            flex: 1;
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        
+        .link-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .link-card h3 {
+            margin-bottom: 10px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Modbus/PLC Troubleshooting Tool</h1>
+        <p class="subtitle">Diagnose and test Modbus communication and PLC connectivity</p>
+        
+        <div class="section">
+            <h2>Quick Links</h2>
+            <div class="links">
+                <a href="/docs" class="link-card">
+                    <h3>📚 API Documentation</h3>
+                    <p>Interactive API docs with Swagger UI</p>
+                </a>
+                <a href="http://localhost:8080" class="link-card" target="_blank">
+                    <h3>🎛️ OpenPLC Web Interface</h3>
+                    <p>Access OpenPLC runtime</p>
+                </a>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Connection Test</h2>
+            <div class="card">
+                <form id="connectionForm">
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="host">Host/IP Address:</label>
+                            <input type="text" id="host" name="host" value="openplc" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="port">Port:</label>
+                            <input type="number" id="port" name="port" value="502" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="slave_id">Slave ID:</label>
+                            <input type="number" id="slave_id" name="slave_id" value="1" min="0" max="247" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="protocol">Protocol:</label>
+                            <select id="protocol" name="protocol">
+                                <option value="tcp">Modbus TCP</option>
+                                <option value="rtu">Modbus RTU</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit">Test Connection</button>
+                </form>
+                <div id="connectionResult" class="result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Read Registers</h2>
+            <div class="card">
+                <form id="readForm">
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="read_host">Host:</label>
+                            <input type="text" id="read_host" name="host" value="openplc" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="read_port">Port:</label>
+                            <input type="number" id="read_port" name="port" value="502" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="read_slave">Slave ID:</label>
+                            <input type="number" id="read_slave" name="slave_id" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register_type">Register Type:</label>
+                            <select id="register_type" name="register_type">
+                                <option value="holding_register">Holding Register</option>
+                                <option value="input_register">Input Register</option>
+                                <option value="coil">Coil</option>
+                                <option value="discrete_input">Discrete Input</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="start_address">Start Address:</label>
+                            <input type="number" id="start_address" name="start_address" value="0" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="count">Count:</label>
+                            <input type="number" id="count" name="count" value="10" min="1" max="125" required>
+                        </div>
+                    </div>
+                    <button type="submit">Read Registers</button>
+                </form>
+                <div id="readResult" class="result"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>API Endpoints</h2>
+            <div class="card">
+                <h3>Available Endpoints:</h3>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><code>GET /api/devices</code> - List all devices</li>
+                    <li><code>POST /api/devices</code> - Add new device</li>
+                    <li><code>POST /api/test/connection</code> - Test device connection</li>
+                    <li><code>POST /api/registers/read</code> - Read registers</li>
+                    <li><code>POST /api/registers/write</code> - Write registers</li>
+                    <li><code>GET /api/plc/status</code> - Get PLC status</li>
+                    <li><code>GET /api/diagnostics/report</code> - Generate diagnostic report</li>
+                    <li><code>GET /api/logs</code> - View transaction logs</li>
+                    <li><code>GET /api/stats</code> - Get statistics</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Connection test form handler
+        document.getElementById('connectionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('connectionResult');
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/test/connection', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                resultDiv.className = 'result ' + (result.success ? 'success' : 'error');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <strong>${result.success ? 'Success!' : 'Failed'}</strong><br>
+                    ${result.message}<br>
+                    ${result.response_time_ms ? `Response time: ${result.response_time_ms.toFixed(2)}ms` : ''}
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        });
+        
+        // Read registers form handler
+        document.getElementById('readForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('readResult');
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/registers/read', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                resultDiv.className = 'result ' + (result.success ? 'success' : 'error');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <strong>${result.success ? 'Success!' : 'Failed'}</strong><br>
+                    ${result.message}<br>
+                    ${result.values ? `Values: ${JSON.stringify(result.values)}` : ''}<br>
+                    Response time: ${result.response_time_ms.toFixed(2)}ms
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

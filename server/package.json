@@ -1,0 +1,15 @@
+{
+  "name": "music-soundscape-player",
+  "version": "0.1.0",
+  "description": "Dashboard + web player for the Rust-rendered soundscape",
+  "main": "server.js",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  }
+}

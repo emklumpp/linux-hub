@@ -1,0 +1,4 @@
+synth/target
+synth/out
+**/node_modules
+.git

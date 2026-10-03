@@ -1,0 +1,9 @@
+services:
+  soundscape:
+    build: .
+    image: music-soundscape:latest
+    container_name: music-soundscape
+    ports:
+      # Bound to localhost only. Override the host port with: PORT=8080 docker compose up
+      - "127.0.0.1:${PORT:-3000}:3000"
+    restart: unless-stopped

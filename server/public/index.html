@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Night Bus Polaroids</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2l12 7v14l-12 7-12-7V9z' fill='none' stroke='%23e9a55a' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="shell">
+    <header class="top">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7-12-7V9z"/></svg>
+        <span>music-soundscape</span>
+      </div>
+      <div class="status" id="status"><span class="dot"></span><span id="status-text">connecting…</span></div>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow"><span id="album-title">Night Bus Polaroids</span> · <span id="track-pos">—</span> · <span id="influences">—</span></p>
+      <h1 id="title">Night Bus Polaroids</h1>
+      <ul class="chips" id="chips"></ul>
+    </section>
+
+    <main class="grid">
+      <section class="card stage" aria-label="Visualizer and now playing">
+        <canvas id="viz" aria-hidden="true"></canvas>
+        <div class="now">
+          <p class="label">Now playing</p>
+          <h2 id="section-name">Press play</h2>
+          <p class="mood" id="section-mood">A Rust-synthesised album, rendered sample by sample.</p>
+          <dl class="readouts">
+            <div><dt>Chord</dt><dd id="chord">—</dd></div>
+            <div><dt>Bar · Beat</dt><dd id="barbeat">—</dd></div>
+            <div><dt>Influence</dt><dd id="influence">—</dd></div>
+          </dl>
+          <ul class="layers" id="layers" aria-label="Active layers"></ul>
+        </div>
+      </section>
+
+      <section class="card transport" aria-label="Transport">
+        <div class="transport-row">
+          <div class="deck">
+            <button id="prev" class="skip" aria-label="Previous track" title="Previous track (P)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2.5v14H6zM19 5.5v13L9.5 12z"/></svg>
+            </button>
+            <button id="play" class="play" aria-label="Play" title="Play / pause (space)">
+              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+            </button>
+            <button id="next" class="skip" aria-label="Next track" title="Next track (N)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5H18v14h-2.5zM5 5.5v13l9.5-6.5z"/></svg>
+            </button>
+          </div>
+          <div class="clock"><span id="cur">0:00</span><span class="sep">/</span><span id="dur">0:00</span></div>
+          <div class="controls">
+            <label class="vol" title="Volume (↑ / ↓)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h4L13 5v14l-5-4.5H4z"/><path class="wave" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+              <input id="volume" type="range" min="0" max="1" step="0.01" value="0.85" aria-label="Volume">
+            </label>
+            <button id="loop" class="toggle" aria-pressed="false" title="Loop (L)">Loop</button>
+            <a class="toggle" id="download" href="#" download title="Download this track as WAV">WAV ↓</a>
+          </div>
+        </div>
+        <canvas id="wave" class="wave" tabindex="0" role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></canvas>
+      </section>
+
+      <section class="card album" aria-label="Album tracklist">
+        <div class="card-head"><h3>Album</h3><span class="hint" id="album-hint">click a track to play · N / P to skip</span></div>
+        <ol id="track-list"></ol>
+      </section>
+
+      <section class="card spectrum" aria-label="Spectrum and levels">
+        <div class="card-head"><h3>Spectrum</h3><span class="hint">40 Hz – 16 kHz · L / R</span></div>
+        <canvas id="spec" aria-hidden="true"></canvas>
+      </section>
+
+      <section class="card stats" aria-label="Listening stats">
+        <div class="card-head"><h3>Dashboard</h3><span class="hint">live from the Node server</span></div>
+        <div class="tiles">
+          <div class="tile"><span class="v" id="st-listening">0</span><span class="k">listening now</span></div>
+          <div class="tile"><span class="v" id="st-plays">0</span><span class="k">plays</span></div>
+          <div class="tile"><span class="v" id="st-time">0s</span><span class="k">time listened</span></div>
+          <div class="tile"><span class="v" id="st-complete">0</span><span class="k">full listens</span></div>
+          <div class="tile"><span class="v" id="st-uptime">—</span><span class="k">server uptime</span></div>
+          <div class="tile"><span class="v" id="st-render">—</span><span class="k">rust render · this track</span></div>
+        </div>
+      </section>
+
+      <section class="card sections" aria-label="Sections">
+        <div class="card-head"><h3>Arrangement</h3><span class="hint">click to jump · keys 1–8</span></div>
+        <ol id="section-list"></ol>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span><kbd>space</kbd> play/pause</span>
+      <span><kbd>←</kbd><kbd>→</kbd> seek 5s</span>
+      <span><kbd>↑</kbd><kbd>↓</kbd> volume</span>
+      <span><kbd>N</kbd><kbd>P</kbd> next / prev track</span>
+      <span><kbd>L</kbd> loop track</span>
+      <span><kbd>1</kbd>–<kbd>8</kbd> sections</span>
+    </footer>
+  </div>
+
+  <audio id="audio" preload="metadata"></audio>
+  <script src="app.js"></script>
+</body>
+</html>

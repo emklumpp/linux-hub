@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: flock-denver-refresh
+spec:
+  # Overpass is a donated public resource — every 6h is plenty for a dataset
+  # that changes as volunteers map new cameras.
+  schedule: "17 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            # Refreshes through the Service rather than mounting the PVC: the
+            # volume is ReadWriteOnce and already attached to the server pod, so
+            # a second mounter would fail to schedule. This also reuses the
+            # server's single-flight guard against overlapping refreshes.
+            - name: refresh
+              image: flock-denver:latest
+              imagePullPolicy: IfNotPresent
+              command: ["node", "-e"]
+              args:
+                - |
+                  const url = "http://flock-denver/api/refresh?mirror=main";
+                  fetch(url, { method: "POST" })
+                    .then(async (r) => {
+                      console.log(r.status, await r.text());
+                      process.exit(r.ok ? 0 : 1);
+                    })
+                    .catch((e) => {
+                      console.error(e);
+                      process.exit(1);
+                    });
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi

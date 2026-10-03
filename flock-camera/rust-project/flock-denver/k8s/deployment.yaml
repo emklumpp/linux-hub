@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flock-denver
+  labels:
+    app: flock-denver
+spec:
+  replicas: 1
+  # The dataset is one file on a ReadWriteOnce volume. A rolling update would
+  # start a second pod that cannot attach the volume, so replace instead.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: flock-denver
+  template:
+    metadata:
+      labels:
+        app: flock-denver
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000          # the `node` user baked into the image
+        runAsGroup: 1000
+        fsGroup: 1000            # makes the mounted PVC writable by that user
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # Seed the dataset so a cold volume doesn't render an empty map.
+        # Deliberately non-fatal: Overpass is often down, and a failing init
+        # container would keep the whole app offline when the UI already has a
+        # perfectly good "no data yet" state.
+        - name: seed-data
+          image: flock-denver:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - test -s /data/cameras.json || flock-fetch --out /data/cameras.json --retries 3 || true
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+      containers:
+        - name: server
+          image: flock-denver:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: DATA_FILE
+              value: /data/cameras.json
+            - name: FETCHER_BIN
+              value: /usr/local/bin/flock-fetch
+          # /api/status answers 200 whether or not data exists, which is exactly
+          # what a probe wants. /api/cameras 404s on an empty volume, so it is
+          # NOT usable here.
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp        # required because the root filesystem is read-only
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: flock-denver-data
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,13 @@
+services:
+  flock-denver:
+    build: .
+    image: flock-denver:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      # Survives container replacement; seeded on first POST /api/refresh.
+      - flock-data:/data
+    restart: unless-stopped
+
+volumes:
+  flock-data:

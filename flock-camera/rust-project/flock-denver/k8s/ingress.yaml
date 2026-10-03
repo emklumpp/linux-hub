@@ -1,0 +1,22 @@
+# Optional. Requires an ingress controller (nginx, traefik, ...) in the cluster.
+# Without one, reach the app with:
+#   kubectl -n flock-denver port-forward svc/flock-denver 3000:80
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flock-denver
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"   # refresh can be slow
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: flock-denver.local        # change to a host you actually control
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flock-denver
+                port:
+                  name: http

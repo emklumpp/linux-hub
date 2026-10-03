@@ -1,0 +1,3 @@
+fetcher/target/
+server/node_modules/
+data/cameras.json

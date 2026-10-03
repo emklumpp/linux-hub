@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Denver ALPR cameras</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ink: #1c2230;
+    --paper: #eef0f2;
+    --panel: #f8f9fa;
+    --line: #cfd4db;
+    --muted: #5d6675;
+    --flock: #b3261e;   /* Flock-tagged cameras */
+    --other: #2b5aa8;   /* other ALPR vendors */
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink); background: var(--paper);
+    display: grid; grid-template-columns: 320px 1fr; grid-template-rows: 100%;
+  }
+  aside {
+    background: var(--panel); border-right: 1px solid var(--line);
+    padding: 24px 22px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0; line-height: 1.45; }
+  .count { font-size: 44px; font-weight: 600; line-height: 1; margin: 0; }
+  .count small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); margin-top: 6px; }
+  .split { display: flex; gap: 18px; font-size: 13px; }
+  .split span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .split .f::before { background: var(--flock); }
+  .split .o::before { background: var(--other); }
+  label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+  select, input[type=search] {
+    width: 100%; font: inherit; font-size: 14px; padding: 7px 9px;
+    border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink);
+  }
+  fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  legend { font-size: 13px; color: var(--muted); padding: 0; margin-bottom: 8px; }
+  button {
+    font: inherit; font-size: 14px; padding: 8px 12px; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--ink); background: var(--ink); color: #fff;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  button.quiet { background: transparent; color: var(--ink); }
+  .status { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: auto; }
+  .status a { color: inherit; }
+  #map { height: 100%; }
+  .pin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .pin.f { background: var(--flock); } .pin.o { background: var(--other); }
+  .pin.dir { border-radius: 50% 50% 50% 0; transform-origin: center; }
+  .popup dl { margin: 0; font-size: 13px; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
+  .popup dt { color: var(--muted); } .popup dd { margin: 0; }
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1000; background: rgba(238,240,242,.9); padding: 24px; text-align: center; }
+  .empty div { max-width: 420px; background: #fff; border: 1px solid var(--line); padding: 22px; border-radius: 6px; }
+  .empty code { background: var(--paper); padding: 1px 5px; border-radius: 3px; }
+  @media (max-width: 760px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; }
+    .count { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <div>
+    <h1>Denver ALPR cameras</h1>
+    <p class="sub">License plate readers reported by OpenStreetMap volunteers inside the Denver metro. Community-mapped, so incomplete.</p>
+  </div>
+
+  <p class="count" id="count">—<small id="countLabel">loading</small></p>
+  <div class="split"><span class="f" id="nFlock">Flock 0</span><span class="o" id="nOther">Other vendors 0</span></div>
+
+  <fieldset>
+    <legend>Filter</legend>
+    <label><input type="checkbox" id="flockOnly"> Flock Safety only</label>
+    <select id="operator"><option value="">Any operator</option></select>
+    <input type="search" id="q" placeholder="Search tags (e.g. Aurora, Genetec)">
+  </fieldset>
+
+  <div style="display:flex;gap:8px;flex-direction:column">
+    <select id="mirror" title="Overpass mirror to query"></select>
+    <div style="display:flex;gap:8px">
+      <button id="refresh">Re-pull from OpenStreetMap</button>
+      <button class="quiet" id="fit">Fit</button>
+    </div>
+  </div>
+
+  <p class="status" id="status"></p>
+</aside>
+
+<div style="position:relative">
+  <div id="map"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script>
+const map = L.map("map", { zoomControl: true }).setView([39.74, -104.99], 10);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 20,
+  maxNativeZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+}).addTo(map);
+
+const cluster = L.markerClusterGroup({ maxClusterRadius: 45, disableClusteringAtZoom: 14 });
+map.addLayer(cluster);
+
+let all = [];
+const $ = (id) => document.getElementById(id);
+
+function icon(c) {
+  const cls = `pin ${c.is_flock ? "f" : "o"}${c.direction != null ? " dir" : ""}`;
+  const rot = c.direction != null ? `transform:rotate(${c.direction + 135}deg)` : "";
+  return L.divIcon({ className: "", html: `<div class="${cls}" style="${rot}"></div>`, iconSize: [12, 12], iconAnchor: [6, 6] });
+}
+
+function popup(c) {
+  const row = (k, v) => (v ? `<dt>${k}</dt><dd>${v}</dd>` : "");
+  return `<div class="popup"><dl>
+    ${row("Vendor", c.manufacturer || "unknown")}
+    ${row("Operator", c.operator)}
+    ${row("Faces", c.direction != null ? c.direction + "°" : "")}
+    ${row("Type", c.surveillance_type)}
+    ${row("Coords", c.lat.toFixed(5) + ", " + c.lon.toFixed(5))}
+    <dt>Links</dt><dd><a target="_blank" rel="noopener" href="${c.osm_url}">OSM node</a> ·
+      <a target="_blank" rel="noopener" href="https://www.google.com/maps?q=${c.lat},${c.lon}">Google Maps</a></dd>
+  </dl></div>`;
+}
+
+function render() {
+  const flockOnly = $("flockOnly").checked;
+  const op = $("operator").value;
+  const q = $("q").value.trim().toLowerCase();
+  const shown = all.filter((c) => {
+    if (flockOnly && !c.is_flock) return false;
+    if (op && (c.operator || "") !== op) return false;
+    if (q && !JSON.stringify(c.tags).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  cluster.clearLayers();
+  cluster.addLayers(shown.map((c) => L.marker([c.lat, c.lon], { icon: icon(c) }).bindPopup(popup(c))));
+  $("count").firstChild.textContent = shown.length.toLocaleString();
+  $("countLabel").textContent = shown.length === all.length ? "cameras mapped" : `of ${all.length.toLocaleString()} shown`;
+  $("nFlock").textContent = `Flock ${shown.filter((c) => c.is_flock).length}`;
+  $("nOther").textContent = `Other vendors ${shown.filter((c) => !c.is_flock).length}`;
+}
+
+const MIRROR_LABEL = {
+  main: "overpass-api.de (default)",
+  kumi: "kumi.systems mirror",
+  coffee: "private.coffee mirror",
+  osmjp: "osm.jp mirror",
+};
+
+async function loadMirrors() {
+  try {
+    const { mirrors, default: def } = await (await fetch("/api/mirrors")).json();
+    $("mirror").innerHTML = mirrors
+      .map((m) => `<option value="${m}"${m === def ? " selected" : ""}>${MIRROR_LABEL[m] || m}</option>`)
+      .join("");
+  } catch {
+    $("mirror").innerHTML = '<option value="main">overpass-api.de (default)</option>';
+  }
+}
+
+async function load() {
+  const r = await fetch("/api/cameras");
+  if (!r.ok) {
+    const { error } = await r.json();
+    document.querySelector("#map").parentElement.insertAdjacentHTML("beforeend",
+      `<div class="empty"><div><strong>No camera data yet.</strong><p>${error}</p><p>Or click <em>Re-pull from OpenStreetMap</em>.</p></div></div>`);
+    $("countLabel").textContent = "no data";
+    return;
+  }
+  const data = await r.json();
+  all = data.cameras;
+  const ops = [...new Set(all.map((c) => c.operator).filter(Boolean))].sort();
+  $("operator").innerHTML = '<option value="">Any operator</option>' + ops.map((o) => `<option>${o}</option>`).join("");
+  $("status").innerHTML = `Pulled ${new Date(data.generated_at).toLocaleString()} · ${data.license}`;
+  render();
+  if (all.length) map.fitBounds(cluster.getBounds().pad(0.05));
+}
+
+["flockOnly", "operator", "q"].forEach((id) => $(id).addEventListener("input", render));
+$("fit").onclick = () => all.length && map.fitBounds(cluster.getBounds().pad(0.05));
+$("refresh").onclick = async () => {
+  const b = $("refresh"); b.disabled = true; b.textContent = "Querying Overpass…";
+  try {
+    const r = await fetch(`/api/refresh?mirror=${encodeURIComponent($("mirror").value)}`, { method: "POST" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error + (j.stderr ? "\n" + j.stderr.slice(-400) : ""));
+    document.querySelector(".empty")?.remove();
+    await load();
+  } catch (e) {
+    alert("Refresh failed:\n" + e.message + "\n\nOverpass is often overloaded — try another mirror from the dropdown.");
+  }
+  b.disabled = false; b.textContent = "Re-pull from OpenStreetMap";
+};
+loadMirrors();
+load();
+</script>
+</body>
+</html>

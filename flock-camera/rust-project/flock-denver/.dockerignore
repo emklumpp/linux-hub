@@ -1,0 +1,9 @@
+**/target
+**/node_modules
+data
+.git
+.gitignore
+k8s
+README.md
+Dockerfile
+docker-compose.yml

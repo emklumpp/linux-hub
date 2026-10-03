@@ -1,0 +1,14 @@
+{
+  "name": "flock-denver-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "refresh": "cd ../fetcher && cargo run --release -- --out ../data/cameras.json",
+    "refresh:flock-only": "cd ../fetcher && cargo run --release -- --flock-only --out ../data/cameras.json"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}

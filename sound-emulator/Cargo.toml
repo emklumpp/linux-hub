@@ -1,0 +1,23 @@
+[package]
+name = "sound-emulator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Creative-coding framework — windowing, drawing, and image loading (re-exports `image`).
+nannou = "0.19"
+# Cross-platform audio I/O — we use it to capture the microphone.
+cpal = "0.15"
+# Fast Fourier Transform — turns the recording into a spectrogram.
+rustfft = "6"
+# WAV encode/decode so we can save & reload a recorded clip.
+hound = "3.5"
+# Ergonomic error handling.
+anyhow = "1"
+
+# A release-ish profile for dev so the visuals run smoothly without a full --release build.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

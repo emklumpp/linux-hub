@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flock-denver-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # The dataset is a single JSON file (~1 MB for the Denver bbox); this is
+      # sized for headroom on a much larger bbox, not for growth over time.
+      storage: 1Gi
+  # storageClassName: standard   # uncomment if your cluster has no default
